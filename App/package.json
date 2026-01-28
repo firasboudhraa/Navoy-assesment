@@ -1,0 +1,9 @@
+{
+  "name": "hello-navoy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js | node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{d=d.trim(); if(d!=='Hello Navoy'){console.error('Expected: Hello Navoy, got:', d); process.exit(1);} console.log('OK');});\""
+  }
+}

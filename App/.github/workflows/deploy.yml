@@ -1,0 +1,82 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  IMAGE_NAME: navoy-app
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Check / Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Repo checks
+        run: |
+          set -euo pipefail
+          test -f Dockerfile
+          echo "Dockerfile OK"
+
+      # 2) Docker login
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 3) Build
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      # 4) Push
+      - name: Tag latest
+        run: |
+          set -euo pipefail
+          docker tag \
+            "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+            "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+
+      - name: Push images (sha + latest)
+        run: |
+          set -euo pipefail
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+
+      # 5) Deploy
+      - name: Deploy on EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -euo pipefail
+
+            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+            docker pull "$IMAGE"
+
+            docker stop navoy-app || true
+            docker rm navoy-app || true
+
+            docker run -d --name navoy-app \
+              -p 80:3000 \
+              --restart unless-stopped \
+              "$IMAGE"
+
+            sleep 2
+            docker ps --filter "name=navoy-app" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            docker image prune -f

@@ -208,4 +208,4 @@ It is included as a future evolution path once the ECS-based platform is stable.
 
 ## 🖼️ Architecture Diagram
 
-![Architecture Diagram](docs/architecture.png)
+![Architecture Diagram](docs/navoy-architecture.jpg)

@@ -2,8 +2,6 @@ locals {
   name = var.project
 }
 
-
-# IAM role/profile (metadata)
 resource "aws_iam_role" "ecs_instance_role" {
   name = "${local.name}-ecs-instance-role"
 
@@ -27,7 +25,6 @@ resource "aws_iam_instance_profile" "ecs_instance_profile" {
   role = aws_iam_role.ecs_instance_role.name
 }
 
-# Launch template (AMI fake)
 resource "aws_launch_template" "ecs" {
   name_prefix   = "${local.name}-ecs-lt-"
   image_id      = var.mock_ami_id
@@ -38,7 +35,6 @@ resource "aws_launch_template" "ecs" {
   }
 }
 
-# ASG mock: capacity=0 => no instances created
 resource "aws_autoscaling_group" "ecs" {
   count               = var.enable_asg ? 1 : 0
   name                = "${local.name}-ecs-asg"
